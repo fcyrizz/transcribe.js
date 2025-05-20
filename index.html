@@ -20,14 +20,9 @@
         margin: 1em auto;
         display: none;
       }
-
       @keyframes spin {
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
-      }
-
-      .hidden {
-        display: none;
       }
     </style>
   </head>
@@ -36,41 +31,44 @@
       <h1>Upload & Transcribe</h1>
       <input type="file" accept="audio/*" class="audio-input" />
       <div class="spinner"></div>
-      <pre><code class="result" style="border: 1px solid grey; white-space: normal;"><em>Upload an audio file to start transcription.</em></code></pre>
+      <pre>
+        <code class="result" style="border: 1px solid grey; white-space: normal;">
+          <em>Upload an audio file to start transcription.</em>
+        </code>
+      </pre>
     </div>
 
     <script src="model-loader.js"></script>
 
     <script type="module">
       import { simd } from "./lib/simd.js";
-      import { default as createModuleSimd } from "../src/shout/shout.wasm.js?v1.0.6";
-      import { default as createModuleNoSimd } from "../src/shout/shout.wasm_no-simd.js?v1.0.6";
+      import createModuleSimd from "../src/shout/shout.wasm.js?v1.0.6";
+      import createModuleNoSimd from "../src/shout/shout.wasm_no-simd.js?v1.0.6";
       import { FileTranscriber } from "../src/index.js?v3.0.0";
 
+      const HF_MODEL_URL =
+        "https://huggingface.co/litonglinux/whisper-cpp-wasm/resolve/main/ggml-model-whisper-base.en-q5_1.bin";
       const input = document.querySelector(".audio-input");
       const resultBox = document.querySelector(".result");
       const spinner = document.querySelector(".spinner");
-
       let transcriber;
 
       (async function preload() {
         const simdSupported = await simd();
-        const createModule = simdSupported ? createModuleSimd : createModuleNoSimd;
-        const modelFile = `./models/ggml-tiny-q5_1.bin`;
+        const createModule = simdSupported
+          ? createModuleSimd
+          : createModuleNoSimd;
 
         transcriber = new FileTranscriber({
           createModule,
-          model: modelFile,
+          model: HF_MODEL_URL,
           print: () => {},
           printErr: () => {},
-          onProgress: (progress) => {
-            resultBox.innerHTML = `<em>Progress: ${Math.round(progress * 100)}%</em>`;
-          },
+          // onProgress removed so only spinner shows
         });
 
-        await preloadModel(modelFile);
+        await preloadModel(HF_MODEL_URL);
         await transcriber.init();
-        console.log("Model ready");
       })();
 
       input.addEventListener("change", async (event) => {
@@ -81,13 +79,10 @@
         spinner.style.display = "block";
 
         try {
-          const result = await transcriber.transcribe(file, {
-            lang: "en",
-          });
-
+          const result = await transcriber.transcribe(file, { lang: "en" });
           resultBox.innerText = "";
-          result.transcription.forEach((segment) => {
-            resultBox.innerText += segment.text + "\n";
+          result.transcription.forEach((s) => {
+            resultBox.innerText += s.text + "\n";
           });
         } catch (err) {
           resultBox.innerHTML = "<em>Error during transcription</em>";
